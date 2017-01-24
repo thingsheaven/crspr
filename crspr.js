@@ -2,14 +2,6 @@
  * Created by anthony on 24/01/2017.
  */
 
-function registerGlobal(moduleName, asName) {
-
-    if (!global[asName]) {
-        console.info('reistered global', moduleName, 'as', asName);
-        global[asName] = require(moduleName);
-    }
-}
-
 /*** A-START ***/
 /*** T-END ***/
 
@@ -22,6 +14,7 @@ var preGlobals = [
 ];
 
 var util = require('util');
+var path = require('path');
 
 function crspr(startTag, endTag, replaceMent) {
 
@@ -35,9 +28,14 @@ function crspr(startTag, endTag, replaceMent) {
 
     console.log('REPLACEMENT:', replaceMent.join('\n'));
 
+    var mePath = process.argv[1];
+
+    console.log('me file:', mePath);
+
     var fs = require('fs');
+
     var lineReader = require('readline').createInterface({
-        input: fs.createReadStream(__filename)
+        input: fs.createReadStream(mePath)
     });
 
     var newFileLines = [];
@@ -73,7 +71,7 @@ function crspr(startTag, endTag, replaceMent) {
     });
 
     lineReader.on('close', function () {
-        fs.writeFileSync(__filename, newFileLines.join('\n'));
+        fs.writeFileSync(mePath, newFileLines.join('\n'));
         console.log('wrote file');
     });
 
