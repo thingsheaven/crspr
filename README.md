@@ -14,7 +14,7 @@ Replace this;
 function registerGlobal(moduleName, asName) {
 
     if (!global[asName]) {
-        console.info('reistered global', moduleName, 'as', asName);
+        console.info('registered global', moduleName, 'as', asName);
         global[asName] = require(moduleName);
     }
 }
@@ -54,4 +54,31 @@ var replaceMentLines = preGlobals.map(function (pair) {
 
 crspr('/*** A-START ***/', '/*** T-END ***/', replaceMentLines);
 ````
-...and rUN!
+...run and VOILA!
+
+````js
+/*** A-START ***/
+globals['Path'] = require('path');
+globals['Url'] = require('url');
+globals['Promise'] = require('bluebird');
+globals['Enum'] = require('enum');
+globals['FS'] = require('fs');
+/*** T-END ***/
+
+var preGlobals = [
+    ['Path', 'path'],
+    ['Url', 'url'],
+    ['Promise', 'bluebird'],
+    ['Enum', 'enum'],
+    ['FS', 'fs']
+];
+
+var crspr = require('crspr');
+var util = require('util');
+var replacementLines = preGlobals.map(function (pair) {
+                                         var asName = pair[0], moduleName = pair[1];
+                                         return util.format('global[\'%s\'] = require(\'%s\');', asName, moduleName);
+                                     });
+
+crspr('/*** A-START ***/', '/*** T-END ***/', replacementLines);
+````
