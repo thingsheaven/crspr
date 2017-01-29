@@ -1,9 +1,93 @@
-/**
- * Created by anthony on 24/01/2017.
- */
+/*** CG-UNI ***/
 
-/*** A-START ***/
-/*** T-END ***/
+function crspr(startTag, endTag, lineArgs, transformer) {
+    transformer = transformer || DEFAULT_FN;
+    startTag = startTag || "/*** A-START ***/";
+    endTag = endTag || "/*** T-END ***/";
+
+    if(verbose) console.log('END:', endTag, 'START:', startTag);
+
+    var replaceMent = (lineArgs || preGlobals).map(transformer), mePath = process.argv[1];
+
+    var fs = require('fs'), newFileLines = [], lineNo = 0, lineReader = require('readline').createInterface({
+        input: fs.createReadStream(mePath)
+    });
+    var startMarkerSeen = false, endMarkerSeen = false, bothTagsSeen = false, waitTime = 0, unmodified = {a: true};
+
+    function onLine(line) {
+        var trimmedLine = line.trim();
+        endMarkerSeen = trimmedLine === endTag;
+        startMarkerSeen = trimmedLine === startTag;
+        bothTagsSeen = startMarkerSeen && endMarkerSeen;
+
+        if(verbose) console.log('////LINE NUMBER:', lineNo, 'TRIM:' + trimmedLine + '<end>');
+        lineNo += 1;
+        if (bothTagsSeen) {
+            if(verbose) console.log('startMarkerSeen:', startMarkerSeen, 'endMarkerSeen:', endMarkerSeen, 'unmodified:', unmodified,
+                'waitTime:', waitTime, 'lines:\n', newFileLines.slice(0, 10).join('\n'), '\ncurrentline:', line);
+
+            newFileLines.push('/*** CG-START ***/');
+            if(verbose) console.log('startMarkerSeen:', startMarkerSeen, 'endMarkerSeen:', endMarkerSeen, 'unmodified:', unmodified,
+                'waitTime:', waitTime, 'lines:\n', newFileLines.slice(0, 10).join('\n'), '\ncurrentline:\n', line);
+        }
+
+        if (startMarkerSeen && endMarkerSeen && unmodified) {
+            if(verbose) console.log('startMarkerSeen:', startMarkerSeen, 'endMarkerSeen:', endMarkerSeen, 'unmodified:', unmodified,
+                'waitTime:', waitTime, 'lines:\n', newFileLines.slice(0, 10).join('\n'), '\ncurrentline:\n', line);
+
+            replaceMent.forEach(function (newLine) {
+                if(verbose) console.log('adding replacement:', newLine);
+                newFileLines.push(newLine);
+            });
+
+            newFileLines.push('/*** CG-END ***/');
+            unmodified.a = false;
+
+            if(verbose) console.log('startMarkerSeen:', startMarkerSeen, 'endMarkerSeen:', endMarkerSeen, 'unmodified:', unmodified,
+                'waitTime:', waitTime, 'lines:\n', newFileLines.slice(0, 10).join('\n'), '\ncurrentline:\n', line);
+        }
+
+        if (!startMarkerSeen && !endMarkerSeen) {
+            if(verbose) console.log('startMarkerSeen:', startMarkerSeen, 'endMarkerSeen:', endMarkerSeen, 'unmodified:', unmodified,
+                'waitTime:', waitTime, 'lines:\n', newFileLines.slice(0, 10).join('\n'), '\ncurrentline:\n', line);
+            newFileLines.push(line);
+            if(verbose) console.log('startMarkerSeen:', startMarkerSeen, 'endMarkerSeen:', endMarkerSeen, 'unmodified:', unmodified,
+                'waitTime:', waitTime, 'lines:\n', newFileLines.slice(0, 10).join('\n'), '\ncurrentline:\n', line);
+        }
+
+        if (startMarkerSeen && !endMarkerSeen) {
+            if(verbose) console.log('startMarkerSeen:', startMarkerSeen, 'endMarkerSeen:', endMarkerSeen, 'unmodified:', unmodified,
+                'waitTime:', waitTime, 'lines:\n', newFileLines.slice(0, 10).join('\n'), '\ncurrentline:\n', line);
+            waitTime += 1;
+            if(verbose) console.log('startMarkerSeen:', startMarkerSeen, 'endMarkerSeen:', endMarkerSeen, 'unmodified:', unmodified,
+                'waitTime:', waitTime, 'lines:\n', newFileLines.slice(0, 10).join('\n'), '\ncurrentline:\n', line);
+        }
+
+        if (endMarkerSeen && !unmodified) {
+            if(verbose) console.log('startMarkerSeen:', startMarkerSeen, 'endMarkerSeen:', endMarkerSeen, 'unmodified:', unmodified,
+                'waitTime:', waitTime, 'lines:\n', newFileLines.slice(0, 10).join('\n'), '\ncurrentline:\n', line);
+            newFileLines.push(line);
+            if(verbose) console.log('startMarkerSeen:', startMarkerSeen, 'endMarkerSeen:', endMarkerSeen, 'unmodified:', unmodified,
+                'waitTime:', waitTime, 'lines:\n', newFileLines.slice(0, 10).join('\n'), '\ncurrentline:\n', line);
+        }
+    }
+
+
+    lineReader.on('line', onLine);
+
+    lineReader.on('close', function () {
+        fs.writeFileSync(mePath, newFileLines.join('\n'));
+        console.log('wrote file: waitTime=', waitTime);
+    });
+
+
+    console.log('REPLACEMENT:');
+    replaceMent.forEach(function join(item) {
+        console.log('\t', item);
+    });
+
+
+}
 
 var preGlobals = [
     ['Path', 'path'],
@@ -15,70 +99,23 @@ var preGlobals = [
 
 var util = require('util');
 var path = require('path');
-
-function crspr(startTag, endTag, replaceMent) {
-
-    replaceMent = replaceMent || preGlobals.map(function (pair) {
-            var asName = pair[0], moduleName = pair[1];
-            return util.format('global[\'%s\'] = require(\'%s\');', asName, moduleName);
-        });
-
-    startTag = startTag || "/*** A-START ***/";
-    endTag = endTag || "/*** T-END ***/";
-
-    console.log('REPLACEMENT:', replaceMent.join('\n'));
-
-    var mePath = process.argv[1];
-
-    console.log('me file:', mePath);
-
-    var fs = require('fs');
-
-    var lineReader = require('readline').createInterface({
-        input: fs.createReadStream(mePath)
-    });
-
-    var newFileLines = [];
-
-    var startMarkerSeen = false, endMarkerSeen = false, unmodified = true;
-    lineReader.on('line', function (line) {
-        //console.log('Line from file:', line);
-
-        var trimmedLine = line.trim();
-        endMarkerSeen = trimmedLine === endTag;
-
-        if(!startMarkerSeen && !endMarkerSeen){
-            newFileLines.push(line);
-        }
-
-        if(startMarkerSeen && endMarkerSeen && unmodified){
-            replaceMent.forEach(function(newLine){
-                console.log('adding repcement:', newLine);
-                newFileLines.push(newLine);
-            });
-            unmodified = false;
-        }
-
-        if(startMarkerSeen && !endMarkerSeen){
-            //skip
-        }
-
-        if(endMarkerSeen && !unmodified){
-            newFileLines.push(line);
-        }
-
-        startMarkerSeen = trimmedLine === startTag;
-    });
-
-    lineReader.on('close', function () {
-        fs.writeFileSync(mePath, newFileLines.join('\n'));
-        console.log('wrote file');
-    });
-
+var verbose = false;
+function DEFAULT_FN(args) {
+    var asName = args[0], moduleName = args[1];
+    return util.format('global[\'%s\'] = require(\'%s\');', asName, moduleName);
 }
 
-if(!module.parent){
-    crspr();
+crspr.v1 = crspr; //backwards compatibility
+crspr.v2 = crspr;
+
+var case1 = [];
+var case2 = ['/*** CG-UNI ***/', '/*** CG-UNI ***/'];
+
+if (!module.parent) {
+    //crspr(case1[0], case1[1], case1[2]);
+    verbose = true;
+    crspr(case2[0], case2[1]);
+    //console.log('s', [1,2,3,4,5].slice(0, 3));
 }
 
 module.exports = crspr;
